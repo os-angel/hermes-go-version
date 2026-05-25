@@ -41,7 +41,7 @@ func TestConcurrentSessions(t *testing.T) {
 			sessionID := config.SessionsDir() + fmt.Sprintf("_stress_%d", idx)
 			ctx := context.Background()
 			for j := 0; j < messagesPerSession; j++ {
-				sess, err := cache.GetOrCreate(ctx, sessionID)
+				sess, err := cache.GetOrCreate(ctx, sessionID, "stress")
 				if err != nil {
 					errs <- fmt.Errorf("session %d msg %d: %w", idx, j, err)
 					return

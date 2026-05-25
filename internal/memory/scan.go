@@ -22,9 +22,18 @@ var (
 		{regexp.MustCompile(`(?i)authorized_keys`), "ssh_backdoor"},
 	}
 
+	// Caracteres Unicode invisibles usados en ataques de injection via memoria.
 	invisibleChars = []rune{
-		'​', '‌', '‍', '⁠', '﻿',
-		'‪', '‫', '‬', '‭', '‮',
+		0x200B, // Zero Width Space
+		0x200C, // Zero Width Non-Joiner
+		0x200D, // Zero Width Joiner
+		0x2060, // Word Joiner
+		0xFEFF, // BOM / Zero Width No-Break Space
+		0x202A, // Left-to-Right Embedding
+		0x202B, // Right-to-Left Embedding
+		0x202C, // Pop Directional Formatting
+		0x202D, // Left-to-Right Override
+		0x202E, // Right-to-Left Override
 	}
 )
 
@@ -33,7 +42,7 @@ func Scan(content string) error {
 	for _, r := range invisibleChars {
 		for _, c := range content {
 			if c == r {
-				return fmt.Errorf("blocked: invisible unicode U+%04X (possible injection)", r)
+				return fmt.Errorf("blocked: invisible unicode U+%04X", r)
 			}
 		}
 	}

@@ -141,7 +141,7 @@ func main() {
 	var router *platforms.Router
 	loop := newLoop()
 	router = platforms.NewRouter(512, func(ctx context.Context, msg platforms.IncomingMessage) error {
-		sess, err := cache.GetOrCreate(ctx, msg.SessionID)
+		sess, err := cache.GetOrCreate(ctx, msg.SessionID, msg.Platform)
 		if err != nil {
 			return err
 		}

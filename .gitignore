@@ -1,0 +1,24 @@
+# binario
+/agent
+/agent.exe
+
+# config con secretos
+.env
+config.yaml
+
+# Go
+*.test
+*.out
+coverage.html
+
+# Node (bridge)
+bridge/node_modules/
+bridge/.baileys/
+
+# persistencia local
+~/.hermes-go/
+
+# IDEs
+.idea/
+.vscode/
+*.swp

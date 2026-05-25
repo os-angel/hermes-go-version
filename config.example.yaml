@@ -1,0 +1,83 @@
+llm:
+  base_url: "https://openrouter.ai/api/v1"
+  api_key: "${OPENROUTER_API_KEY}"
+  model: "anthropic/claude-sonnet-4-6"
+  timeout: 120s
+  max_retries: 5
+
+memory:
+  builtin:
+    memory_char_limit: 2200
+    user_char_limit: 1375
+  external: ""
+
+skills:
+  dirs:
+    - "./skills"
+    - "~/.hermes-go/skills"
+  disabled: []
+
+platforms:
+  whatsapp:
+    enabled: true
+    backend: "baileys"
+    bridge_port: 3001
+    bridge_node_path: "node"
+    mode: "bot"
+
+  email:
+    enabled: false
+    imap:
+      host: "imap.gmail.com"
+      port: 993
+      user: "${EMAIL_USER}"
+      pass: "${EMAIL_PASS}"
+      mailbox: "INBOX"
+      use_idle: true
+      poll_interval: 30s
+    smtp:
+      host: "smtp.gmail.com"
+      port: 587
+      user: "${EMAIL_USER}"
+      pass: "${EMAIL_PASS}"
+      from: "${EMAIL_USER}"
+      starttls: true
+
+  webhook:
+    enabled: true
+    subscriptions_path: "~/.hermes-go/webhook_subscriptions.json"
+
+  restapi:
+    enabled: true
+    tokens:
+      - "${HERMES_API_TOKEN_1}"
+    require_token: true
+
+mcp:
+  servers: {}
+
+cron:
+  enabled: true
+  tick_interval: 60s
+  grace_period: 10m
+
+agent:
+  identity: |
+    Eres un asistente personal con acceso a tools.
+    Eres conciso, directo y honesto cuando no sabes algo.
+  pii_salt: "${HERMES_PII_SALT}"
+  max_iterations: 12
+  tool_budget_chars: 60000
+  workers: 16
+  session_cache_size: 256
+  session_ttl: 1h
+
+server:
+  listen_addr: "0.0.0.0:8080"
+  read_timeout: 30s
+  write_timeout: 60s
+
+logging:
+  level: "info"
+  format: "json"
+  prometheus_enabled: true

@@ -27,37 +27,85 @@ El script lo verifica antes de continuar e indica donde descargarlo si falta.
 
 ---
 
-## Configuracion del proveedor LLM
+## Proveedores LLM
 
-hermes-go funciona con cualquier endpoint compatible con la API de OpenAI.  
-Soporta tanto **claves de API** (pago por token) como **tokens de suscripcion** (plan mensual).
+hermes-go soporta los mismos proveedores que hermes-agent: claves de API, suscripciones
+(Nous Portal, OpenAI Codex, GitHub Copilot), OAuth y modelos locales.
 
-### Proveedores compatibles
+### Tipos de autenticacion
 
-| Proveedor | Tipo | base_url | Modelo recomendado |
-|-----------|------|----------|--------------------|
-| **Nous Portal** | Suscripcion | `https://portal.nousresearch.com/api/v1` | `hermes-3-llama-3.1-405b` |
-| **OpenRouter** | API key / gratis | `https://openrouter.ai/api/v1` | `meta-llama/llama-3.3-70b-instruct` |
-| **OpenAI** | API key | `https://api.openai.com/v1` | `gpt-4o` |
-| **OpenAI Codex** | Suscripcion ChatGPT Pro | `https://api.openai.com/v1` | `codex-mini-latest` |
-| **GitHub Copilot** | Suscripcion Copilot | `https://api.githubcopilot.com` | `gpt-4o` |
-| **Anthropic** | API key | `https://api.anthropic.com/v1` | `claude-opus-4-5` |
-| **Groq** | API key / tier gratis | `https://api.groq.com/openai/v1` | `llama-3.3-70b-versatile` |
-| **Together AI** | API key | `https://api.together.xyz/v1` | `meta-llama/Llama-3-70b-chat-hf` |
-| **Ollama** (local) | Sin clave | `http://localhost:11434/v1` | `llama3.3` |
-| **LM Studio** (local) | Sin clave | `http://localhost:1234/v1` | *(el que cargues)* |
+| Tipo | Descripcion |
+|------|-------------|
+| `api_key` | Clave de API via variable de entorno o config |
+| `oauth_device_code` | Login via navegador con device code flow (Nous Portal) |
+| `oauth_external` | Login via OAuth con redirect en navegador |
+| `copilot` | GitHub token — intercambiado por token de Copilot automaticamente |
+| `aws_sdk` | Credenciales IAM de AWS — sin clave explicita |
 
-### Ejemplos de configuracion
+### Proveedores disponibles
 
-**Nous Portal — suscripcion**
+#### Suscripciones (sin API key manual)
+
+| Nombre | Tipo | Modelo recomendado | Requisito |
+|--------|------|--------------------|-----------|
+| `nous` | oauth_device_code | `hermes-3-405b` | Cuenta Nous Research |
+| `openai-codex` | oauth_external | `codex-mini-latest` | Suscripcion ChatGPT Pro |
+| `copilot` | copilot | `gpt-4o` | Suscripcion GitHub Copilot |
+| `xai-oauth` | oauth_external | `grok-3` | Cuenta xAI |
+| `minimax-oauth` | oauth_external | `MiniMax-M2.7` | Cuenta MiniMax |
+| `qwen-oauth` | oauth_external | `qwen-max` | Cuenta Alibaba Cloud |
+
+#### API Key
+
+| Nombre | Variable de entorno | Modelo recomendado | Nivel gratis |
+|--------|--------------------|--------------------|:------------:|
+| `openrouter` | `OPENROUTER_API_KEY` | `meta-llama/llama-3.3-70b-instruct` | Si |
+| `anthropic` | `ANTHROPIC_API_KEY` | `claude-opus-4-5` | No |
+| `openai` | `OPENAI_API_KEY` | `gpt-4o` | No |
+| `gemini` | `GOOGLE_API_KEY` | `gemini-2.0-flash` | Si |
+| `groq` | `GROQ_API_KEY` | `llama-3.3-70b-versatile` | Si |
+| `deepseek` | `DEEPSEEK_API_KEY` | `deepseek-chat` | No |
+| `xai` | `XAI_API_KEY` | `grok-3` | No |
+| `together` | `TOGETHER_API_KEY` | `meta-llama/Llama-3-70b-chat-hf` | No |
+| `nvidia` | `NVIDIA_API_KEY` | `meta/llama-3.3-70b-instruct` | Si |
+| `minimax` | `MINIMAX_API_KEY` | `MiniMax-M2.7` | No |
+| `kimi` | `KIMI_API_KEY` | `moonshot-v1-8k` | No |
+| `huggingface` | `HF_TOKEN` | *(el que elijas)* | Si |
+| `bedrock` | Credenciales IAM | `anthropic.claude-opus-4-5-v1:0` | No |
+| `azure` | `AZURE_OPENAI_API_KEY` | *(el que configures)* | No |
+| `nous-api` | `NOUS_API_KEY` | `hermes-3-405b` | No |
+
+#### Locales (sin clave)
+
+| Nombre | URL | Modelo recomendado |
+|--------|-----|--------------------|
+| `ollama` | `http://localhost:11434/v1` | `llama3.3` |
+| `lmstudio` | `http://localhost:1234/v1` | *(el que cargues)* |
+
+---
+
+## Configuracion
+
+### Opcion A — usando el registro de proveedores (recomendado)
+
+Con el campo `provider`, hermes-go resuelve credenciales automaticamente:
+
 ```yaml
 llm:
-  base_url: "https://portal.nousresearch.com/api/v1"
-  api_key: "${NOUS_PORTAL_TOKEN}"
-  model: "hermes-3-llama-3.1-405b"
+  provider: "openrouter"           # nombre del proveedor del registro
+  model: "meta-llama/llama-3.3-70b-instruct"
+  timeout: 120s
+  max_retries: 5
 ```
 
-**OpenRouter — API key o modelos gratis**
+Las credenciales se toman de las variables de entorno declaradas en el proveedor
+(`OPENROUTER_API_KEY` en este caso). Para proveedores OAuth, se leen de
+`~/.hermes-go/auth.json` (ver seccion de autorizacion mas abajo).
+
+### Opcion B — configuracion manual (base_url + api_key)
+
+Si prefieres controlar los endpoints directamente:
+
 ```yaml
 llm:
   base_url: "https://openrouter.ai/api/v1"
@@ -65,31 +113,69 @@ llm:
   model: "meta-llama/llama-3.3-70b-instruct"
 ```
 
+Todas las variables `${VAR}` se expanden desde el entorno al arrancar.
+
+### Ejemplos
+
+**Nous Portal — suscripcion (OAuth device code)**
+```yaml
+# Primero autoriza: hermes-go auth add nous
+llm:
+  provider: "nous"
+  model: "hermes-3-405b"
+```
+
 **OpenAI Codex — suscripcion ChatGPT Pro**
 ```yaml
+# Primero autoriza: hermes-go auth add openai-codex
 llm:
-  base_url: "https://api.openai.com/v1"
-  api_key: "${OPENAI_API_KEY}"
+  provider: "openai-codex"
   model: "codex-mini-latest"
 ```
 
 **GitHub Copilot — suscripcion**
 ```yaml
+# Requiere: export GH_TOKEN=ghp_xxx  o  COPILOT_GITHUB_TOKEN=ghp_xxx
 llm:
-  base_url: "https://api.githubcopilot.com"
-  api_key: "${GITHUB_COPILOT_TOKEN}"
+  provider: "copilot"
   model: "gpt-4o"
+```
+
+**OpenRouter — API key o modelos gratis**
+```yaml
+# export OPENROUTER_API_KEY=sk-or-xxx
+llm:
+  provider: "openrouter"
+  model: "meta-llama/llama-3.3-70b-instruct"
 ```
 
 **Ollama — modelo local, sin clave**
 ```yaml
 llm:
-  base_url: "http://localhost:11434/v1"
-  api_key: "ollama"
+  provider: "ollama"
   model: "llama3.3"
 ```
 
-Todas las variables `${VAR}` se expanden automaticamente desde el entorno al arrancar.
+---
+
+## Autorizar proveedores OAuth
+
+Para proveedores con suscripcion (Nous, Codex, xAI, MiniMax, Qwen):
+
+```bash
+# Ver todos los proveedores y su estado actual
+hermes-go auth list
+
+# Autorizar un proveedor (abre el navegador o muestra un codigo)
+hermes-go auth add nous
+hermes-go auth add openai-codex
+
+# Eliminar credencial guardada
+hermes-go auth remove nous
+```
+
+Los tokens se guardan en `~/.hermes-go/auth.json` con refresh automatico
+(2 minutos antes de vencer).
 
 ---
 
@@ -99,8 +185,7 @@ Despues de instalar, edita `~/.hermes-go/config.yaml`:
 
 ```yaml
 llm:
-  base_url: "https://openrouter.ai/api/v1"
-  api_key: "${OPENROUTER_API_KEY}"
+  provider: "openrouter"
   model: "meta-llama/llama-3.3-70b-instruct"
   timeout: 120s
   max_retries: 5
@@ -151,6 +236,8 @@ Las credenciales se guardan en `~/.hermes-go/whatsapp/` — no necesitas volver 
 
 - Loop de conversacion con cualquier LLM OpenAI-compatible
 - Alta concurrencia: goroutines + worker pool, sin GIL (hasta 2000 sesiones)
+- 25+ proveedores integrados: API keys, suscripciones OAuth, modelos locales
+- Gestion de credenciales OAuth con refresh automatico en `~/.hermes-go/auth.json`
 - Memoria persistente: `MEMORY.md` + `USER.md` por sesion, con file locking
 - Skills: instrucciones reutilizables cargadas desde archivos `.md` bajo demanda
 - Cliente MCP: stdio, StreamableHTTP, SSE con reconexion automatica

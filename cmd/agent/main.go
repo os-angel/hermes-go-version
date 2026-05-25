@@ -33,6 +33,12 @@ import (
 )
 
 func main() {
+	// Subcomandos que no requieren config.yaml
+	if len(os.Args) > 1 && os.Args[1] == "auth" {
+		runAuthCommand(os.Args[2:])
+		return
+	}
+
 	cfgPath := flag.String("config", "config.yaml", "ruta al archivo de configuracion")
 	flag.Parse()
 
@@ -75,7 +81,11 @@ func main() {
 	sd.Register("memory", memMgr)
 
 	// --- LLM Client ---
-	llmClient := llm.NewClient(cfg.LLM)
+	llmClient, err := llm.NewClient(ctx, cfg.LLM)
+	if err != nil {
+		slog.Error("llm client", "err", err)
+		os.Exit(1)
+	}
 
 	// --- Skills Loader ---
 	skillDirs := cfg.Skills.Dirs

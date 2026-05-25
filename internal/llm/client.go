@@ -2,6 +2,7 @@ package llm
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -9,6 +10,7 @@ import (
 	"github.com/openai/openai-go/option"
 
 	"hermes-go/internal/config"
+	"hermes-go/internal/providers"
 )
 
 // ChatRequest es la peticion al LLM.
@@ -36,24 +38,49 @@ type Client struct {
 	retry   backoff.BackOff
 }
 
-func NewClient(cfg config.LLMConfig) *Client {
+// NewClient construye el cliente LLM. Si cfg.Provider esta definido, resuelve
+// baseURL y APIKey desde el registro de proveedores. En caso contrario usa
+// cfg.BaseURL y cfg.APIKey directamente.
+func NewClient(ctx context.Context, cfg config.LLMConfig) (*Client, error) {
+	baseURL := cfg.BaseURL
+	apiKey := cfg.APIKey
+	var extraHeaders map[string]string
+
+	if cfg.Provider != "" {
+		resolved, err := providers.Resolve(ctx, cfg.Provider)
+		if err != nil {
+			return nil, fmt.Errorf("llm: resolver proveedor: %w", err)
+		}
+		if baseURL == "" {
+			baseURL = resolved.BaseURL
+		}
+		if apiKey == "" {
+			apiKey = resolved.APIKey
+		}
+		extraHeaders = resolved.DefaultHeaders
+	}
+
 	bo := backoff.NewExponentialBackOff()
 	bo.InitialInterval = time.Second
 	bo.Multiplier = 2
 	bo.MaxInterval = 16 * time.Second
 	bo.MaxElapsedTime = time.Duration(cfg.MaxRetries) * 16 * time.Second
 
-	c := openai.NewClient(
-		option.WithAPIKey(cfg.APIKey),
-		option.WithBaseURL(cfg.BaseURL),
-	)
+	opts := []option.RequestOption{
+		option.WithAPIKey(apiKey),
+		option.WithBaseURL(baseURL),
+	}
+	for k, v := range extraHeaders {
+		opts = append(opts, option.WithHeader(k, v))
+	}
 
+	c := openai.NewClient(opts...)
 	return &Client{
 		inner:   c,
 		model:   cfg.Model,
 		timeout: cfg.Timeout,
 		retry:   bo,
-	}
+	}, nil
 }
 
 // ChatCompletion ejecuta una llamada al LLM con reintentos en errores transitorios.

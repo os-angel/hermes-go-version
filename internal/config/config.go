@@ -21,6 +21,10 @@ type Config struct {
 }
 
 type LLMConfig struct {
+	// Provider es el nombre del proveedor del registro (ej. "openrouter", "nous", "copilot").
+	// Si se especifica, base_url y api_key se resuelven automaticamente.
+	// Si no se especifica, se usan base_url y api_key directamente.
+	Provider   string        `yaml:"provider"`
 	BaseURL    string        `yaml:"base_url"`
 	APIKey     string        `yaml:"api_key"`
 	Model      string        `yaml:"model"`

@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -88,8 +89,11 @@ func (e *ToolExecutor) Execute(ctx context.Context, calls []openai.ChatCompletio
 
 func (e *ToolExecutor) executeOne(ctx context.Context, call openai.ChatCompletionMessageToolCall) (string, error) {
 	var args map[string]any
-	// TODO Fase 6: parsear call.Function.Arguments JSON -> args
-	_ = args
+	if call.Function.Arguments != "" {
+		if err := json.Unmarshal([]byte(call.Function.Arguments), &args); err != nil {
+			return fmt.Sprintf(`{"error": "invalid arguments: %s"}`, err.Error()), nil
+		}
+	}
 	result, err := e.registry.Execute(ctx, call.Function.Name, args)
 	if err != nil {
 		return fmt.Sprintf(`{"error": %q}`, err.Error()), nil

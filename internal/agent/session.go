@@ -43,6 +43,33 @@ func (s *Session) AppendAssistant(text string) {
 	s.Messages = append(s.Messages, openai.AssistantMessage(text))
 }
 
+// AppendAssistantWithCalls agrega un mensaje de asistente que incluye tool calls. Thread-safe.
+func (s *Session) AppendAssistantWithCalls(content string, calls []openai.ChatCompletionMessageToolCall) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	callParams := make([]openai.ChatCompletionMessageToolCallParam, len(calls))
+	for i, tc := range calls {
+		callParams[i] = openai.ChatCompletionMessageToolCallParam{
+			ID:   openai.F(tc.ID),
+			Type: openai.F(openai.ChatCompletionMessageToolCallType(tc.Type)),
+			Function: openai.F(openai.ChatCompletionMessageToolCallFunctionParam{
+				Name:      openai.F(tc.Function.Name),
+				Arguments: openai.F(tc.Function.Arguments),
+			}),
+		}
+	}
+	msg := openai.ChatCompletionAssistantMessageParam{
+		Role:      openai.F(openai.ChatCompletionAssistantMessageParamRoleAssistant),
+		ToolCalls: openai.F(callParams),
+	}
+	if content != "" {
+		msg.Content = openai.F([]openai.ChatCompletionAssistantMessageParamContentUnion{
+			openai.TextPart(content),
+		})
+	}
+	s.Messages = append(s.Messages, msg)
+}
+
 // AppendToolResult agrega el resultado de una tool call. Thread-safe.
 func (s *Session) AppendToolResult(toolCallID, content string) {
 	s.mu.Lock()

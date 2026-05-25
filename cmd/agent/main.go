@@ -76,6 +76,12 @@ func main() {
 		cfg.Memory.Builtin.MemoryCharLimit,
 		cfg.Memory.Builtin.UserCharLimit,
 	)
+	if err := builtin.Initialize(ctx, memory.InitOptions{
+		HermesHome: config.Home(),
+	}); err != nil {
+		slog.Error("memory init", "err", err)
+		os.Exit(1)
+	}
 	memMgr := memory.NewManager(builtin)
 	memory.RegisterMemoryTool(reg, builtin)
 	sd.Register("memory", memMgr)
@@ -124,7 +130,6 @@ func main() {
 			LLM:        llmClient,
 			Registry:   reg,
 			Memory:     memMgr,
-			Skills:     skillsLoader,
 			Prompt:     promptBuilder,
 			MaxIter:    cfg.Agent.MaxIterations,
 			ToolBudget: cfg.Agent.ToolBudgetChars,

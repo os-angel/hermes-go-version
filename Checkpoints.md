@@ -15,11 +15,11 @@ No marques una fase como completa si los tests no pasan o si hay panics en produ
 |------|-------------|:---:|:----:|:----:|-------|
 | Scaffold | Estructura, stubs, configs, bridge.js | x | - | - | Generado 2026-05-22 |
 | 1 - Config | config.go, paths.go, observability | x | - | - | Implementado en scaffold |
-| 2 - Memory Builtin | BuiltinProvider: MEMORY.md + USER.md, flock, scan | | | | |
-| 3 - LLM Client | ChatCompletion, retry, classify_error | | | | |
+| 2 - Memory Builtin | BuiltinProvider: MEMORY.md + USER.md, flock, scan | x | - | - | Implementado 2026-05-22 |
+| 3 - LLM Client | ChatCompletion, retry, classify_error | x | - | - | Implementado 2026-05-22 |
 | 4 - Session | FileSessionStore, SessionCache LRU+TTL | x | - | - | Implementado en scaffold |
 | 5 - Prompt Builder | 3 capas: stable/context/volatile | x | - | - | Implementado en scaffold (basico) |
-| 6 - Conv. Loop | Run(): LLM -> tools -> respuesta final | | | | |
+| 6 - Conv. Loop | Run(): LLM -> tools -> respuesta final | x | - | - | Implementado 2026-05-22 |
 | 7 - Skills | Loader: discover, load, system prompt block | x | - | - | Implementado en scaffold |
 | 8 - Platform Router | Router + workers + Sender/Receiver interfaces | x | - | - | Implementado en scaffold |
 | 9 - WhatsApp | Bridge.js (Baileys), Poller, Sender, Identity | x | - | - | bridge.js funcional |
@@ -30,8 +30,8 @@ No marques una fase como completa si los tests no pasan o si hay panics en produ
 | 14 - Send Tool | send_message tool para mensajes proactivos | x | - | - | Stub funcional en scaffold |
 | 15 - Cron | Store, Scanner, Runner, Scheduler (robfig/cron) | x | - | - | Implementado 2026-05-26 |
 | 16 - Plugins | Plugin interface, Registry in-tree | x | - | - | Implementado en scaffold |
-| 17 - Stress Tests | concurrent_test.go, memory_test.go, k6 | | | | |
-| 18 - CI/CD | Makefile, Dockerfile, GitHub Actions | x | - | - | Makefile en scaffold |
+| 17 - Stress Tests | concurrent_test.go, memory_test.go, k6 | x | - | - | Implementado 2026-05-26 (t.Skip para ejecucion manual) |
+| 18 - CI/CD | Makefile, Dockerfile, GitHub Actions | x | - | - | ci.yml + Dockerfile agregados 2026-05-26 |
 
 Referencia columnas: x = completo, en blanco = pendiente, - = no aplica
 

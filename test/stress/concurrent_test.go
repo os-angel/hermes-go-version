@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"hermes-go/internal/agent"
 	"hermes-go/internal/config"
+	"hermes-go/internal/platforms"
 )
 
 // TestConcurrentSessions verifica que el SessionCache soporta
@@ -65,5 +67,37 @@ func TestConcurrentSessions(t *testing.T) {
 func TestRouterWorkerPool(t *testing.T) {
 	t.Skip("stress test: ejecutar manualmente")
 
-	panic("not implemented: Phase 8 stress test")
+	const numMessages = 1000
+	const numWorkers = 8
+
+	var received atomic.Int64
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	router := platforms.NewRouter(256, func(_ context.Context, _ platforms.IncomingMessage) error {
+		received.Add(1)
+		return nil
+	})
+
+	go router.Start(ctx, numWorkers)
+
+	in := router.Incoming()
+	for i := 0; i < numMessages; i++ {
+		in <- platforms.IncomingMessage{
+			Platform:   "stress",
+			SessionID:  fmt.Sprintf("session_%d", i%50),
+			ChatID:     fmt.Sprintf("chat_%d", i%50),
+			Text:       fmt.Sprintf("message %d", i),
+			ReceivedAt: time.Now(),
+		}
+	}
+
+	if err := router.Drain(10 * time.Second); err != nil {
+		t.Fatalf("drain timeout: %v", err)
+	}
+
+	if got := received.Load(); got != numMessages {
+		t.Errorf("expected %d messages processed, got %d", numMessages, got)
+	}
 }

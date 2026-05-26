@@ -23,12 +23,12 @@ No marques una fase como completa si los tests no pasan o si hay panics en produ
 | 7 - Skills | Loader: discover, load, system prompt block | x | - | - | Implementado en scaffold |
 | 8 - Platform Router | Router + workers + Sender/Receiver interfaces | x | - | - | Implementado en scaffold |
 | 9 - WhatsApp | Bridge.js (Baileys), Poller, Sender, Identity | x | - | - | bridge.js funcional |
-| 10 - Email | IMAPPoller, SMTPSender, Parser, Threading | | | | |
-| 11 - Webhook | Server HMAC, SubscriptionStore | | | | |
-| 12 - REST API | Server, BearerAuth, POST /v1/chat | | | | |
-| 13 - MCP Client | stdio/http/sse transports, Manager, reconnect | | | | |
+| 10 - Email | IMAPPoller, SMTPSender, Parser, Threading | x | - | - | Implementado 2026-05-26, wired en main.go |
+| 11 - Webhook | Server HMAC, SubscriptionStore | x | - | - | Implementado 2026-05-26 |
+| 12 - REST API | Server, BearerAuth, POST /v1/chat | x | - | - | Implementado 2026-05-26 |
+| 13 - MCP Client | stdio/http/sse transports, Manager, reconnect | x | - | - | Implementado 2026-05-26, wired en main.go |
 | 14 - Send Tool | send_message tool para mensajes proactivos | x | - | - | Stub funcional en scaffold |
-| 15 - Cron | Store, Scanner, Runner, Scheduler (robfig/cron) | | | | |
+| 15 - Cron | Store, Scanner, Runner, Scheduler (robfig/cron) | x | - | - | Implementado 2026-05-26 |
 | 16 - Plugins | Plugin interface, Registry in-tree | x | - | - | Implementado en scaffold |
 | 17 - Stress Tests | concurrent_test.go, memory_test.go, k6 | | | | |
 | 18 - CI/CD | Makefile, Dockerfile, GitHub Actions | x | - | - | Makefile en scaffold |

@@ -2,7 +2,9 @@ package webhook
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 )
 
@@ -48,16 +50,28 @@ func (s *SubscriptionStore) List() []*Subscription {
 	return out
 }
 
-// Upsert agrega o actualiza una suscripcion y persiste.
-// Pendiente - Fase 11.
+// Upsert agrega o actualiza una suscripcion y persiste atomicamente.
 func (s *SubscriptionStore) Upsert(sub *Subscription) error {
-	panic("not implemented: Phase 11")
+	s.mu.Lock()
+	s.subs[sub.ID] = sub
+	data, err := json.Marshal(s.subs)
+	s.mu.Unlock()
+	if err != nil {
+		return fmt.Errorf("webhook store marshal: %w", err)
+	}
+	return webhookAtomicWrite(s.path, data)
 }
 
-// Delete elimina una suscripcion y persiste.
-// Pendiente - Fase 11.
+// Delete elimina una suscripcion y persiste atomicamente.
 func (s *SubscriptionStore) Delete(id string) error {
-	panic("not implemented: Phase 11")
+	s.mu.Lock()
+	delete(s.subs, id)
+	data, err := json.Marshal(s.subs)
+	s.mu.Unlock()
+	if err != nil {
+		return fmt.Errorf("webhook store marshal: %w", err)
+	}
+	return webhookAtomicWrite(s.path, data)
 }
 
 func (s *SubscriptionStore) load() error {
@@ -68,4 +82,26 @@ func (s *SubscriptionStore) load() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return json.Unmarshal(data, &s.subs)
+}
+
+// webhookAtomicWrite escribe data al path usando write-to-temp-then-rename.
+func webhookAtomicWrite(path string, data []byte) error {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		return fmt.Errorf("mkdir: %w", err)
+	}
+	tmp, err := os.CreateTemp(dir, ".tmp-*")
+	if err != nil {
+		return fmt.Errorf("create temp: %w", err)
+	}
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath)
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return fmt.Errorf("write temp: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("close temp: %w", err)
+	}
+	return os.Rename(tmpPath, path)
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -65,9 +66,32 @@ func (s *Server) handleChat(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "message required", http.StatusBadRequest)
 		return
 	}
-	slog.Info("rest api chat", "session_id", req.SessionID)
-	// TODO Fase 12: construir IncomingMessage y enviarlo a s.out
-	http.Error(w, "not implemented: Phase 12", http.StatusNotImplemented)
+	sessionID := req.SessionID
+	if sessionID == "" {
+		if req.UserID != "" {
+			sessionID = "rest_" + req.UserID
+		} else {
+			sessionID = "rest_default"
+		}
+	}
+	slog.Info("rest api chat", "session_id", sessionID)
+
+	msg := platforms.IncomingMessage{
+		Platform:   "rest",
+		SessionID:  sessionID,
+		ChatID:     sessionID,
+		Text:       req.Message,
+		ReceivedAt: time.Now(),
+	}
+	select {
+	case s.out <- msg:
+	case <-r.Context().Done():
+		http.Error(w, "request cancelled", http.StatusServiceUnavailable)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
+	_ = json.NewEncoder(w).Encode(chatResponse{SessionID: sessionID, Status: "queued"})
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, _ *http.Request) {

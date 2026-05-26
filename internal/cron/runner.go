@@ -22,7 +22,6 @@ func NewRunner(outputDir string, dispatch func(ctx context.Context, job *Job) er
 
 // Run ejecuta el job dado. Gracia de 60s: si el job deberia haber corrido
 // hace mas de 60s (por restart del proceso), se omite para evitar doble ejecucion.
-// Pendiente - Fase 15.
 func (r *Runner) Run(ctx context.Context, job *Job) {
 	if time.Since(job.NextRunAt) > 60*time.Second {
 		slog.Info("cron job skipped (stale)", "job", job.ID, "next_run_at", job.NextRunAt)
@@ -30,10 +29,17 @@ func (r *Runner) Run(ctx context.Context, job *Job) {
 	}
 	if err := ScanJobPrompt(job.Prompt); err != nil {
 		slog.Error("cron job prompt rejected", "job", job.ID, "err", err)
+		r.saveOutput(job.ID, []byte("REJECTED: "+err.Error()))
 		return
 	}
 	slog.Info("cron job start", "job", job.ID, "name", job.Name)
-	panic("not implemented: Phase 15")
+	if err := r.dispatch(ctx, job); err != nil {
+		slog.Error("cron job dispatch error", "job", job.ID, "err", err)
+		r.saveOutput(job.ID, []byte("ERROR: "+err.Error()))
+		return
+	}
+	r.saveOutput(job.ID, []byte("dispatched ok"))
+	slog.Info("cron job done", "job", job.ID)
 }
 
 // saveOutput escribe el output del job en el directorio de outputs.

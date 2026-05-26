@@ -20,6 +20,7 @@ import (
 	"hermes-go/internal/memory"
 	"hermes-go/internal/observability"
 	"hermes-go/internal/platforms"
+	emailpkg "hermes-go/internal/platforms/email"
 	"hermes-go/internal/platforms/restapi"
 	"hermes-go/internal/platforms/webhook"
 	"hermes-go/internal/platforms/whatsapp"
@@ -27,6 +28,7 @@ import (
 	"hermes-go/internal/shutdown"
 	"hermes-go/internal/skills"
 	"hermes-go/internal/tools"
+	"hermes-go/internal/tools/mcp"
 
 	// Importar paquetes de tools para que sus init() se ejecuten.
 	_ "hermes-go/internal/tools/file"
@@ -195,6 +197,50 @@ func main() {
 				slog.Error("whatsapp poller", "err", err)
 			}
 		}()
+	}
+
+	// --- Email (IMAP + SMTP) ---
+	if cfg.Platforms.Email.Enabled {
+		ic := cfg.Platforms.Email.IMAP
+		sc := cfg.Platforms.Email.SMTP
+		imapCfg := emailpkg.IMAPConfig{
+			Host:     ic.Host,
+			Port:     ic.Port,
+			Username: ic.User,
+			Password: ic.Pass,
+			Mailbox:  ic.Mailbox,
+			TLS:      true,
+		}
+		smtpCfg := emailpkg.SMTPConfig{
+			Host:     sc.Host,
+			Port:     sc.Port,
+			Username: sc.User,
+			Password: sc.Pass,
+			From:     sc.From,
+			TLS:      sc.STARTTLS,
+		}
+		smtpSender := emailpkg.NewSMTPSender(smtpCfg)
+		router.AddSender(smtpSender)
+		imapPoller := emailpkg.NewIMAPPoller(imapCfg, router.Incoming())
+		go func() {
+			if err := imapPoller.Start(ctx); err != nil {
+				slog.Error("imap poller", "err", err)
+			}
+		}()
+	}
+
+	// --- MCP Servers ---
+	if len(cfg.MCP.Servers) > 0 {
+		mcpMgr := mcp.NewManager(reg)
+		for name, srv := range cfg.MCP.Servers {
+			srv.Name = name
+			if err := mcpMgr.Connect(ctx, srv); err != nil {
+				slog.Error("mcp connect", "server", name, "err", err)
+			}
+		}
+		sd.Register("mcp", shutdownFunc(func(ctx context.Context) error {
+			return mcpMgr.Shutdown(ctx)
+		}))
 	}
 
 	// --- Skills tools ---

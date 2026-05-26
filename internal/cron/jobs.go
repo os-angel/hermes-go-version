@@ -2,7 +2,9 @@ package cron
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -22,7 +24,7 @@ type Job struct {
 	NextRunAt   time.Time `json:"next_run_at,omitempty"`
 }
 
-// Store persiste los jobs en un archivo JSON con flock para evitar corrupcion.
+// Store persiste los jobs en un archivo JSON.
 type Store struct {
 	mu   sync.RWMutex
 	path string
@@ -54,22 +56,42 @@ func (s *Store) Get(id string) (*Job, bool) {
 	return j, ok
 }
 
-// Upsert agrega o actualiza un job y persiste.
-// Pendiente - Fase 15.
+// Upsert agrega o actualiza un job y persiste atomicamente.
 func (s *Store) Upsert(j *Job) error {
-	panic("not implemented: Phase 15")
+	s.mu.Lock()
+	s.jobs[j.ID] = j
+	data, err := json.Marshal(s.jobs)
+	s.mu.Unlock()
+	if err != nil {
+		return fmt.Errorf("cron store marshal: %w", err)
+	}
+	return cronAtomicWrite(s.path, data)
 }
 
-// Delete elimina un job y persiste.
-// Pendiente - Fase 15.
+// Delete elimina un job y persiste atomicamente.
 func (s *Store) Delete(id string) error {
-	panic("not implemented: Phase 15")
+	s.mu.Lock()
+	delete(s.jobs, id)
+	data, err := json.Marshal(s.jobs)
+	s.mu.Unlock()
+	if err != nil {
+		return fmt.Errorf("cron store marshal: %w", err)
+	}
+	return cronAtomicWrite(s.path, data)
 }
 
-// UpdateLastRun actualiza el timestamp de ultima ejecucion.
-// Pendiente - Fase 15.
+// UpdateLastRun actualiza el timestamp de ultima ejecucion y persiste.
 func (s *Store) UpdateLastRun(id string, t time.Time) error {
-	panic("not implemented: Phase 15")
+	s.mu.Lock()
+	if j, ok := s.jobs[id]; ok {
+		j.LastRunAt = t
+	}
+	data, err := json.Marshal(s.jobs)
+	s.mu.Unlock()
+	if err != nil {
+		return fmt.Errorf("cron store marshal: %w", err)
+	}
+	return cronAtomicWrite(s.path, data)
 }
 
 func (s *Store) load() error {
@@ -80,4 +102,26 @@ func (s *Store) load() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return json.Unmarshal(data, &s.jobs)
+}
+
+// cronAtomicWrite escribe data al path usando write-to-temp-then-rename.
+func cronAtomicWrite(path string, data []byte) error {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		return fmt.Errorf("mkdir: %w", err)
+	}
+	tmp, err := os.CreateTemp(dir, ".tmp-*")
+	if err != nil {
+		return fmt.Errorf("create temp: %w", err)
+	}
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath)
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return fmt.Errorf("write temp: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("close temp: %w", err)
+	}
+	return os.Rename(tmpPath, path)
 }

@@ -19,6 +19,10 @@ type IncomingMessage struct {
 	Attachments []Attachment
 	Metadata    map[string]string
 	ReceivedAt  time.Time
+	// ReplyC es opcional. Si no es nil, el worker envia la respuesta aqui
+	// en lugar de (o ademas de) usar el Sender de la plataforma.
+	// Usado por la REST API para respuesta sincrona.
+	ReplyC chan<- string
 }
 
 // Attachment es un archivo adjunto ya descargado localmente.

@@ -27,11 +27,10 @@ type chatRequest struct {
 	UserID    string `json:"user_id"`
 }
 
-// chatResponse es la respuesta inmediata (202 Accepted).
-// La respuesta real se entrega por el canal de retorno configurado.
+// chatResponse es la respuesta sincrona del agente.
 type chatResponse struct {
 	SessionID string `json:"session_id"`
-	Status    string `json:"status"`
+	Reply     string `json:"reply"`
 }
 
 func NewServer(out chan<- platforms.IncomingMessage, tokens []string) *Server {
@@ -54,8 +53,8 @@ func (s *Server) routes(tokens []string) {
 	s.mux.Get("/v1/health", s.handleHealth)
 }
 
-// handleChat acepta un mensaje y lo encola para el agente.
-// Pendiente - Fase 12.
+// handleChat procesa un mensaje de forma sincrona: espera la respuesta del agente
+// y la devuelve en el mismo request HTTP (igual que POST /v1/chat/completions en hermes-agent).
 func (s *Server) handleChat(w http.ResponseWriter, r *http.Request) {
 	var req chatRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -76,22 +75,30 @@ func (s *Server) handleChat(w http.ResponseWriter, r *http.Request) {
 	}
 	slog.Info("rest api chat", "session_id", sessionID)
 
+	replyC := make(chan string, 1)
 	msg := platforms.IncomingMessage{
 		Platform:   "rest",
 		SessionID:  sessionID,
 		ChatID:     sessionID,
 		Text:       req.Message,
 		ReceivedAt: time.Now(),
+		ReplyC:     replyC,
 	}
+
 	select {
 	case s.out <- msg:
 	case <-r.Context().Done():
 		http.Error(w, "request cancelled", http.StatusServiceUnavailable)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusAccepted)
-	_ = json.NewEncoder(w).Encode(chatResponse{SessionID: sessionID, Status: "queued"})
+
+	select {
+	case reply := <-replyC:
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(chatResponse{SessionID: sessionID, Reply: reply})
+	case <-r.Context().Done():
+		http.Error(w, "request cancelled", http.StatusServiceUnavailable)
+	}
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, _ *http.Request) {

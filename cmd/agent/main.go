@@ -36,9 +36,15 @@ import (
 
 func main() {
 	// Subcomandos que no requieren config.yaml
-	if len(os.Args) > 1 && os.Args[1] == "auth" {
-		runAuthCommand(os.Args[2:])
-		return
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "setup":
+			runSetupCommand(os.Args[2:])
+			return
+		case "auth":
+			runAuthCommand(os.Args[2:])
+			return
+		}
 	}
 
 	cfgPath := flag.String("config", "config.yaml", "ruta al archivo de configuracion")
@@ -145,12 +151,22 @@ func main() {
 	router = platforms.NewRouter(512, func(ctx context.Context, msg platforms.IncomingMessage) error {
 		sess, err := cache.GetOrCreate(ctx, msg.SessionID, msg.Platform)
 		if err != nil {
+			if msg.ReplyC != nil {
+				msg.ReplyC <- "error: " + err.Error()
+			}
 			return err
 		}
 		reply, err := loop.Run(ctx, sess, msg.Text)
 		if err != nil {
 			slog.Error("conversation loop", "session_id", msg.SessionID, "err", err)
+			if msg.ReplyC != nil {
+				msg.ReplyC <- "error: " + err.Error()
+			}
 			return err
+		}
+		if msg.ReplyC != nil {
+			msg.ReplyC <- reply
+			return nil
 		}
 		return router.Send(ctx, platforms.OutgoingMessage{
 			Platform: msg.Platform,

@@ -2,6 +2,7 @@ package toolweb
 
 import (
 	"context"
+	"fmt"
 
 	"hermes-go/internal/tools"
 )
@@ -26,6 +27,6 @@ func init() {
 }
 
 func webSearch(_ context.Context, args map[string]any) (string, error) {
-	// Fase 3: implementar con Exa, DuckDuckGo o similar
-	panic("not implemented: Phase 3")
+	query, _ := args["query"].(string)
+	return "", fmt.Errorf("web_search not configured (query: %q)", query)
 }
